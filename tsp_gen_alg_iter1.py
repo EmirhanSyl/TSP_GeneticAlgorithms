@@ -171,9 +171,9 @@ if __name__ == "__main__":
 
     best, duration = genetic_algorithm(
         cities,
-        population_size=50,
-        generations=500,
-        mutation_rate=0.2,
+        population_size=150,
+        generations=1000,
+        mutation_rate=0.01,
         seed=42,          # İsteğe bağlı
         log_every=10      # İsteğe bağlı: her 10 nesilde bir raporla
     )

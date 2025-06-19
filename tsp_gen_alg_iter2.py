@@ -1,6 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # tsp_ga.py
-# Genetik Algoritma ile TSP – ayrıntılı log + süre ölçümü
+# ------------------------------------------------------------
+# Genetik Algoritma ile TSP (PMX + 2-opt + adaptif mutasyon)
+# Parametreleştirilebilir sürüm – en iyi mesafe & süre döndürür
+# ------------------------------------------------------------
+from __future__ import annotations
 
 import sys
 import math
@@ -10,9 +14,8 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-# ─────────────────────  Yardımcı fonksiyonlar  ──────────────────────
-def log(msg: str, *, verbose: bool) -> None:
-    """İstenirse stderr’e mesaj basar."""
+# ─────────────────────  Yardımcı fonksiyon  ──────────────────────
+def _log(msg: str, *, verbose: bool) -> None:
     if verbose:
         print(msg, file=sys.stderr)
 
@@ -21,67 +24,61 @@ def log(msg: str, *, verbose: bool) -> None:
 def solve_tsp_ga(
     filepath: str = "input.txt",
     *,
+    pop_size: int = 50,
+    max_gen: int = 500,
+    mutation_base: float = 0.20,
+    elite_count: int = 1,
+    seed: int | None = None,
     verbose: bool = True,
     log_interval: int = 10,
-) -> None:
-    """Genetik Algoritma ile TSP çözümü (PMX + adaptif mutasyon + 2-opt)."""
-    # 0. Süre ölçümünü başlat
+) -> Tuple[float, float]:
+    """
+    GA tabanlı TSP çözücüsü.
+
+    Dönüş:
+        best_distance (float),
+        elapsed_time (float, saniye)
+    """
+    if seed is not None:
+        random.seed(seed)
+
     t0 = time.perf_counter()
 
-    # 1. Girdiyi oku
+    # 1. Veri okuma ---------------------------------------------------
     file = Path(filepath)
     if not file.exists():
-        print(f"Hata: '{filepath}' bulunamadı.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError(filepath)
 
-    log(f"[1/8] '{filepath}' okunuyor…", verbose=verbose)
+    _log(f"[1/8] '{filepath}' okunuyor…", verbose=verbose)
     tokens = file.read_text().strip().split()
     if not tokens:
-        print("Girdi dosyası boş.", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("Girdi dosyası boş.")
 
-    try:
-        N = int(tokens[0])
-    except ValueError:
-        print("İlk değer şehir sayısı olmalı.", file=sys.stderr)
-        sys.exit(1)
-
+    N = int(tokens[0])
     expected = 1 + 2 * N
     if len(tokens) < expected:
-        print(
-            f"Girdi hatalı: {N} şehir için {2 * N} koordinat gerekir,"
-            f" ancak {len(tokens)-1} değer bulundu.",
-            file=sys.stderr,
+        raise ValueError(
+            f"Girdi hatalı: {N} şehir için {2*N} koordinat gerekir, "
+            f"ancak {len(tokens)-1} değer bulundu."
         )
-        sys.exit(1)
-
     coords = list(map(float, tokens[1:expected]))
     cities: List[Tuple[float, float]] = list(zip(coords[::2], coords[1::2]))
-    log(f"--> {N} şehir yüklendi.", verbose=verbose)
+    _log(f"--> {N} şehir yüklendi.", verbose=verbose)
 
-    # 2. Mesafe matrisi
-    log("[2/8] Mesafe matrisi hesaplanıyor…", verbose=verbose)
+    # 2. Mesafe matrisi ----------------------------------------------
+    _log("[2/8] Mesafe matrisi hesaplanıyor…", verbose=verbose)
     dist = [[0] * N for _ in range(N)]
     for i in range(N):
         x1, y1 = cities[i]
         for j in range(i + 1, N):
             x2, y2 = cities[j]
-            d = math.hypot(x1 - x2, y1 - y2)
-            dij = int(math.floor(d + 0.5))
-            dist[i][j] = dij
-            dist[j][i] = dij
-    log("--> Mesafe matrisi hazır.", verbose=verbose)
+            dij = int(math.floor(math.hypot(x1 - x2, y1 - y2) + 0.5))
+            dist[i][j] = dist[j][i] = dij
+    _log("--> Mesafe matrisi hazır.", verbose=verbose)
 
-    # 3. GA parametreleri
-    POP_SIZE = 50
-    ELITE_COUNT = 1
-    MAX_GEN = 500
-    base_mut = 0.2
-    mut_prob = base_mut
-    no_improve = 0
+    # 3. Başlangıç popülasyonu ---------------------------------------
+    _log("[3/8] Başlangıç popülasyonu…", verbose=verbose)
 
-    # 4. Başlangıç popülasyonu
-    log("[3/8] Başlangıç popülasyonu oluşturuluyor…", verbose=verbose)
     def nearest_neighbor(start: int = 0) -> List[int]:
         unvisited = set(range(N))
         tour = [start]
@@ -95,28 +92,28 @@ def solve_tsp_ga(
         return tour
 
     population: List[List[int]] = [nearest_neighbor()] if N else []
-    while len(population) < POP_SIZE:
-        t = list(range(N))
-        random.shuffle(t)
-        population.append(t)
-    log(f"--> Popülasyon boyutu: {POP_SIZE}", verbose=verbose)
+    while len(population) < pop_size:
+        p = list(range(N))
+        random.shuffle(p)
+        population.append(p)
+    _log(f"--> Popülasyon boyutu: {pop_size}", verbose=verbose)
 
-    # 5. Yardımcılar
-    def route_distance(tour: List[int]) -> int:
+    # 4. Yardımcılar ---------------------------------------------------
+    def route_len(tour: List[int]) -> int:
         return sum(dist[tour[i]][tour[(i + 1) % N]] for i in range(N))
 
-    def tournament_select() -> List[int]:
+    def tournament() -> int:
         k = 3
         idxs = random.sample(range(len(population)), k)
-        return min(idxs, key=lambda idx: distances[idx])  # index döner
+        return min(idxs, key=lambda idx: fitness[idx])  # index
 
-    def pmx_crossover(p1: List[int], p2: List[int]) -> Tuple[List[int], List[int]]:
+    def pmx(p1: List[int], p2: List[int]) -> Tuple[List[int], List[int]]:
         a, b = sorted(random.sample(range(N), 2))
         c1, c2 = [-1] * N, [-1] * N
         c1[a : b + 1] = p1[a : b + 1]
         c2[a : b + 1] = p2[a : b + 1]
 
-        def pmx_fill(child, other):
+        def fill(child, other):
             for i in range(a, b + 1):
                 gene = other[i]
                 if gene not in child:
@@ -126,9 +123,8 @@ def solve_tsp_ga(
                         pos = other.index(gene_in_child)
                     child[pos] = gene
 
-        pmx_fill(c1, p2)
-        pmx_fill(c2, p1)
-
+        fill(c1, p2)
+        fill(c2, p1)
         for i in range(N):
             if c1[i] == -1:
                 c1[i] = p2[i]
@@ -141,8 +137,7 @@ def solve_tsp_ga(
         route[i], route[j] = route[j], route[i]
 
     def two_opt(route: List[int]) -> int:
-        improved = True
-        d_total = route_distance(route)
+        improved, d_tot = True, route_len(route)
         while improved:
             improved = False
             for i in range(1, N - 1):
@@ -155,77 +150,74 @@ def solve_tsp_ga(
                     new = dist[a][c] + dist[b][d]
                     if new < old:
                         route[i : j + 1] = reversed(route[i : j + 1])
-                        d_total += new - old
+                        d_tot += new - old
                         improved = True
                         break
                 if improved:
                     break
-        return d_total
+        return d_tot
 
-    # 6. Başlangıç değerlendirme
-    distances = [route_distance(t) for t in population]
-    best_idx = min(range(len(distances)), key=distances.__getitem__)
+    # 5. İlk değerlendirme --------------------------------------------
+    fitness = [1.0 / route_len(t) for t in population]
+    best_idx = max(range(pop_size), key=lambda i: fitness[i])
     best_tour = population[best_idx][:]
-    best_dist = distances[best_idx]
-    log(f"[4/8] GA başlıyor: İlk en iyi mesafe = {best_dist}", verbose=verbose)
+    best_dist = 1.0 / fitness[best_idx]
+    _log(f"[4/8] İlk en iyi mesafe = {best_dist}", verbose=verbose)
 
-    # 7. GA ana döngüsü
-    for gen in range(1, MAX_GEN + 1):
-        new_pop, new_dist = [], []
+    # 6. GA döngüsü ----------------------------------------------------
+    mut_prob = mutation_base
+    stagnation = 0
+    for gen in range(1, max_gen + 1):
+        new_pop, new_fit = [], []
 
-        # 7.1 Elit
-        new_pop.append(best_tour[:])
-        new_dist.append(best_dist)
+        # Elit
+        for _ in range(elite_count):
+            new_pop.append(best_tour[:])
+            new_fit.append(1.0 / best_dist)
 
-        # 7.2 Çocuk üretimi
-        while len(new_pop) < POP_SIZE:
-            p1 = population[tournament_select()]
-            p2 = population[tournament_select()]
-            c1, c2 = pmx_crossover(p1, p2)
-
+        # Çocuklar
+        while len(new_pop) < pop_size:
+            p1, p2 = population[tournament()], population[tournament()]
+            c1, c2 = pmx(p1, p2)
             if random.random() < mut_prob:
                 mutate(c1)
             if random.random() < mut_prob:
                 mutate(c2)
-
-            d1 = two_opt(c1)
-            d2 = two_opt(c2)
-
+            d1, d2 = two_opt(c1), two_opt(c2)
             new_pop.extend([c1, c2])
-            new_dist.extend([d1, d2])
+            new_fit.extend([1.0 / d1, 1.0 / d2])
 
-        # 7.3 Güncelle
-        population = new_pop[:POP_SIZE]
-        distances = new_dist[:POP_SIZE]
+        # Popülasyon güncelle
+        population, fitness = new_pop[:pop_size], new_fit[:pop_size]
 
-        # 7.4 En iyiyi güncelle
-        curr_idx = min(range(len(distances)), key=distances.__getitem__)
-        if distances[curr_idx] < best_dist:
-            best_dist = distances[curr_idx]
+        # En iyi güncelle
+        curr_idx = max(range(pop_size), key=lambda i: fitness[i])
+        curr_dist = 1.0 / fitness[curr_idx]
+        if curr_dist < best_dist:
+            best_dist = curr_dist
             best_tour = population[curr_idx][:]
-            no_improve = 0
-            mut_prob = base_mut
-            log(f"[Gen {gen}] İyileşme! Yeni en iyi = {best_dist}", verbose=verbose)
+            mut_prob = mutation_base
+            stagnation = 0
+            _log(f"[Gen {gen}] İyileşme! → {best_dist}", verbose=verbose)
         else:
-            no_improve += 1
-            if no_improve == 5:
-                mut_prob = min(1.0, base_mut * 2)
-            elif no_improve == 20:
-                mut_prob = min(1.0, base_mut * 4)
+            stagnation += 1
+            if stagnation == 5:
+                mut_prob = min(1.0, mutation_base * 2)
+            elif stagnation == 20:
+                mut_prob = min(1.0, mutation_base * 4)
 
-        # 7.5 Periyodik rapor
         if gen % log_interval == 0:
-            log(f"[Gen {gen}] En iyi mesafe: {best_dist}", verbose=verbose)
+            _log(f"[Gen {gen}] En iyi mesafe: {best_dist}", verbose=verbose)
 
-    # 8. Sonuç yazdır
-    log("[8/8] Çalışma tamamlandı, sonuç yazdırılıyor…", verbose=verbose)
+    # 7. Sonuç ---------------------------------------------------------
     print(f"{best_dist} 0")
     print(" ".join(map(str, best_tour)))
-
     elapsed = time.perf_counter() - t0
-    log(f"Toplam süre: {elapsed:.2f} saniye", verbose=verbose)
+    _log(f"Toplam süre: {elapsed:.2f} sn", verbose=verbose)
+    return best_dist, elapsed
 
 
-# ─────────────────────  Komut satırı arabirimi  ──────────────────────
+# ───── CLI ‐ tek başına çalıştırıldığında ─────
 if __name__ == "__main__":
-    solve_tsp_ga("data/tsp_100_1")
+    # Varsayılan: data/tsp_100_1 gibi bir dosya verin
+    solve_tsp_ga("input.txt")
