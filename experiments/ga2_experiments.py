@@ -2,7 +2,7 @@ import csv, itertools, time, argparse
 from pathlib import Path
 import pandas as pd
 
-from algorithms.tsp_gen_alg_iter2 import solve_tsp_ga
+from algorithms.tsp_gen_alg_iter2_memetic import solve_tsp_ga
 
 
 # ---------- Parametre ızgarası ----------

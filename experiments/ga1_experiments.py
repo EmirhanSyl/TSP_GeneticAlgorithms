@@ -15,7 +15,7 @@ import pandas as pd
 # NOT: Bu fonksiyonları "ga_core.py" gibi ayrı dosyaya koyup import
 # ederseniz temiz olur. Örnek amaçlı doğrudan buraya kopyalayabilirsiniz.
 # --------------------------------------------------------------
-from algorithms.tsp_gen_alg_iter1 import (
+from algorithms.tsp_gen_alg_iter1_baseline import (
     read_tsp_file,
     total_distance,
     genetic_algorithm,
