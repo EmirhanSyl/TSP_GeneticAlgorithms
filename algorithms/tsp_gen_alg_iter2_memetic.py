@@ -220,4 +220,4 @@ def solve_tsp_ga(
 # ───── CLI ‐ tek başına çalıştırıldığında ─────
 if __name__ == "__main__":
     # Varsayılan: data/tsp_100_1 gibi bir dosya verin
-    solve_tsp_ga("input.txt")
+    solve_tsp_ga("../data/tsp_100_1")

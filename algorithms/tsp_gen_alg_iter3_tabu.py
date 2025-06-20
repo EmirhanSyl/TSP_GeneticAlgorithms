@@ -145,8 +145,8 @@ PARAM_GRID_TS = {
 }
 REPEATS   = 5
 SEED_BASE = 2025
-TSP_FILE  = "data/tsp_100_1"        # Probleminiz
-OUT_CSV   = "ts_param_test_results.csv"
+TSP_FILE  = "../data/tsp_100_1"        # Probleminiz
+OUT_CSV   = "ga3_experiments_100.csv"
 
 # ───────────────────────── GRID-SEARCH FONKSİYONLARI ───────────────────
 def run_grid_ts():

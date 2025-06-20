@@ -115,7 +115,7 @@ def grid_search_tsp(
     filepath: str,
     param_grid: dict,
     repeat: int = 1,         # run each combo 'repeat' times
-    csv_path: str = "grid_results.csv",
+    csv_path: str = "ga4_experiments_70.csv",
 ) -> None:
     """
     Run GA for every parameter combo and save results to CSV.
@@ -163,8 +163,8 @@ PARAM_GRID = {
 
 if __name__ == "__main__":
     grid_search_tsp(
-        filepath="/content/drive/MyDrive/Colab/tsp_100_1",   # <- your instance
+        filepath="../data/tsp_70_1",   # <- your instance
         param_grid=PARAM_GRID,
         repeat=3,                    # 3 independent runs per combo
-        csv_path="/content/drive/MyDrive/Colab/grid_results.csv",
+        csv_path="../experiment_results/ga4_experiments_70.csv",
     )
