@@ -2,7 +2,7 @@ import csv, itertools, time, argparse
 from pathlib import Path
 import pandas as pd
 
-from tsp_gen_alg_iter2 import solve_tsp_ga
+from algorithms.tsp_gen_alg_iter2 import solve_tsp_ga
 
 
 # ---------- Parametre ızgarası ----------
@@ -14,7 +14,7 @@ GRID = {
 
 REPEAT      = 3
 BASE_SEED   = 2024
-CSV_OUTPUT  = "ga_results.csv"
+CSV_OUTPUT  = "ga_results_70.csv"
 
 
 def run_experiments(filepath: str):
@@ -72,7 +72,7 @@ def show_summary(rows):
 
 def main():
     ap = argparse.ArgumentParser(description="GA parametre tarayıcısı")
-    input_file = "data/tsp_100_1"
+    input_file = "../data/tsp_70_1"
     ap.add_argument("--csv", default=CSV_OUTPUT,
                     help=f"Çıktı CSV (varsayılan {CSV_OUTPUT})")
     args = ap.parse_args()

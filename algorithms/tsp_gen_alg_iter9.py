@@ -142,7 +142,7 @@ if __name__ == "__main__":
     3. Mesafe, süre raporla
     4. Tur çiz
     """
-    tsp_file = "data/tsp_100_1"  # Dosyanızın adı
+    tsp_file = "../data/tsp_100_1"  # Dosyanızın adı
     cities = read_tsp_file(tsp_file)
 
     print(f"{len(cities)} şehir yüklendi. Simulated Annealing başlatılıyor...")

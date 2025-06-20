@@ -2,7 +2,6 @@ import csv
 import time
 import itertools
 import argparse
-import statistics as st
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,7 +15,7 @@ import pandas as pd
 # NOT: Bu fonksiyonları "ga_core.py" gibi ayrı dosyaya koyup import
 # ederseniz temiz olur. Örnek amaçlı doğrudan buraya kopyalayabilirsiniz.
 # --------------------------------------------------------------
-from tsp_gen_alg_iter1 import (
+from algorithms.tsp_gen_alg_iter1 import (
     read_tsp_file,
     total_distance,
     genetic_algorithm,
@@ -115,7 +114,7 @@ def print_summary(results):
 def main():
     parser = argparse.ArgumentParser(description="GA parametre taraması ve karşılaştırma")
 
-    input_file = "data/tsp_100_1"
+    input_file = "../data/tsp_100_1"
     parser.add_argument("--csv", default=RESULTS_CSV,
                         help=f"Çıktı CSV (varsayılan: {RESULTS_CSV})")
     args = parser.parse_args()

@@ -166,7 +166,7 @@ def plot_tour(tour, cities, title="En iyi bulunan tur"):
 # ---------------------------- Örnek Çalıştırma ---------------------------
 if __name__ == "__main__":
     # TXT biçimindeki örnek problemi okuma
-    tsp_file = "data/tsp_100_1"  # Dosyanızın adı
+    tsp_file = "../data/tsp_100_1"  # Dosyanızın adı
     cities = read_tsp_file(tsp_file)
 
     best, duration = genetic_algorithm(
